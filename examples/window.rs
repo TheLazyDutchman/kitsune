@@ -17,10 +17,11 @@ use winit::{
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct Vertex {
 	position: [f32; 2],
+	uv: [f32; 2],
 }
 
 impl Vertex {
-	const LAYOUT: [VertexAttribute; 1] = vertex_attr_array![0 => Float32x2];
+	const LAYOUT: [VertexAttribute; 2] = vertex_attr_array![0 => Float32x2, 1 => Float32x2];
 
 	fn layout() -> VertexBufferLayout<'static> {
 		VertexBufferLayout {
@@ -30,8 +31,8 @@ impl Vertex {
 		}
 	}
 
-	fn new(x: f32, y: f32) -> Self {
-		Self { position: [x, y] }
+	fn new(position: [f32; 2], uv: [f32; 2]) -> Self {
+		Self { position, uv }
 	}
 }
 
@@ -149,10 +150,10 @@ fn draw(surface: &Surface, device: &Device, pipeline: &RenderPipeline, queue: &Q
 		.create_view(&Default::default());
 
 	let vertices = [
-		Vertex::new(-1.0, 1.0),
-		Vertex::new(-1.0, -1.0),
-		Vertex::new(1.0, 1.0),
-		Vertex::new(1.0, -1.0),
+		Vertex::new([-1.0, 1.0], [0.0, 0.0]),
+		Vertex::new([-1.0, -1.0], [0.0, 1.0]),
+		Vertex::new([1.0, 1.0], [1.0, 0.0]),
+		Vertex::new([1.0, -1.0], [1.0, 1.0]),
 	];
 	let indices: [u16; 6] = [0, 1, 2, 1, 3, 2];
 
