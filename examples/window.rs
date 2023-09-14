@@ -1,12 +1,39 @@
 use wgpu::{
-	Color, CompositeAlphaMode, Device, LoadOp, Operations, PresentMode, Queue,
-	RenderPassDescriptor, Surface, SurfaceConfiguration, TextureFormat, TextureUsages,
+	include_wgsl,
+	util::{BufferInitDescriptor, DeviceExt},
+	vertex_attr_array, BufferUsages, Color, ColorTargetState, ColorWrites, CompositeAlphaMode,
+	Device, FragmentState, IndexFormat, LoadOp, MultisampleState, Operations,
+	PipelineLayoutDescriptor, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
+	RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, Surface, SurfaceConfiguration,
+	TextureFormat, TextureUsages, VertexAttribute, VertexBufferLayout, VertexState, VertexStepMode,
 };
 use winit::{
 	event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
 	event_loop::EventLoop,
 	window::Window,
 };
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+	position: [f32; 2],
+}
+
+impl Vertex {
+	const LAYOUT: [VertexAttribute; 1] = vertex_attr_array![0 => Float32x2];
+
+	fn layout() -> VertexBufferLayout<'static> {
+		VertexBufferLayout {
+			array_stride: std::mem::size_of::<Self>() as u64,
+			step_mode: VertexStepMode::Vertex,
+			attributes: &Self::LAYOUT,
+		}
+	}
+
+	fn new(x: f32, y: f32) -> Self {
+		Self { position: [x, y] }
+	}
+}
 
 #[tokio::main]
 async fn main() {
@@ -43,6 +70,49 @@ async fn main() {
 		},
 	);
 
+	let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+		label: Some("Pipeline Layout"),
+		bind_group_layouts: &[],
+		push_constant_ranges: &[],
+	});
+
+	let shader = device.create_shader_module(include_wgsl!("shader.wgsl"));
+
+	let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+		label: Some("Render Pipeline"),
+		layout: Some(&layout),
+		vertex: VertexState {
+			module: &shader,
+			entry_point: "vs_main",
+			buffers: &[Vertex::layout()],
+		},
+		primitive: PrimitiveState {
+			topology: PrimitiveTopology::TriangleList,
+			strip_index_format: None,
+			front_face: wgpu::FrontFace::Ccw,
+			cull_mode: Some(wgpu::Face::Back),
+			unclipped_depth: false,
+			polygon_mode: wgpu::PolygonMode::Fill,
+			conservative: false,
+		},
+		depth_stencil: None,
+		multisample: MultisampleState {
+			count: 1,
+			mask: !0,
+			alpha_to_coverage_enabled: false,
+		},
+		fragment: Some(FragmentState {
+			module: &shader,
+			entry_point: "fs_main",
+			targets: &[Some(ColorTargetState {
+				format: TextureFormat::Bgra8UnormSrgb,
+				blend: None,
+				write_mask: ColorWrites::ALL,
+			})],
+		}),
+		multiview: None,
+	});
+
 	event_loop.run(move |event, _, controlflow| match event {
 		Event::WindowEvent {
 			window_id,
@@ -64,13 +134,13 @@ async fn main() {
 			window.request_redraw();
 		}
 		Event::RedrawRequested(window_id) if window.id() == window_id => {
-			draw(&surface, &device, &queue);
+			draw(&surface, &device, &pipeline, &queue);
 		}
 		_ => {}
 	});
 }
 
-fn draw(surface: &Surface, device: &Device, queue: &Queue) {
+fn draw(surface: &Surface, device: &Device, pipeline: &RenderPipeline, queue: &Queue) {
 	let output = surface
 		.get_current_texture()
 		.unwrap();
@@ -78,24 +148,52 @@ fn draw(surface: &Surface, device: &Device, queue: &Queue) {
 		.texture
 		.create_view(&Default::default());
 
-	let mut encoder = device.create_command_encoder(&Default::default());
-	encoder.begin_render_pass(&RenderPassDescriptor {
-		label: Some("Render Pass"),
-		color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-			view: &view,
-			resolve_target: None,
-			ops: Operations {
-				load: LoadOp::Clear(Color {
-					r: 0.1,
-					g: 0.4,
-					b: 0.7,
-					a: 1.0,
-				}),
-				store: true,
-			},
-		})],
-		depth_stencil_attachment: None,
+	let vertices = [
+		Vertex::new(-1.0, 1.0),
+		Vertex::new(-1.0, -1.0),
+		Vertex::new(1.0, 1.0),
+		Vertex::new(1.0, -1.0),
+	];
+	let indices: [u16; 6] = [0, 1, 2, 1, 3, 2];
+
+	let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
+		label: Some("Vertex Buffer"),
+		contents: bytemuck::cast_slice(&vertices),
+		usage: BufferUsages::VERTEX,
 	});
+
+	let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
+		label: Some("Index Buffer"),
+		contents: bytemuck::cast_slice(&indices),
+		usage: BufferUsages::INDEX,
+	});
+
+	let mut encoder = device.create_command_encoder(&Default::default());
+
+	{
+		let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
+			label: Some("Render Pass"),
+			color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+				view: &view,
+				resolve_target: None,
+				ops: Operations {
+					load: LoadOp::Clear(Color {
+						r: 0.1,
+						g: 0.4,
+						b: 0.7,
+						a: 1.0,
+					}),
+					store: true,
+				},
+			})],
+			depth_stencil_attachment: None,
+		});
+
+		pass.set_pipeline(pipeline);
+		pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+		pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint16);
+		pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
+	}
 
 	queue.submit(Some(encoder.finish()));
 
