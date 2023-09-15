@@ -11,7 +11,12 @@ fn vs_main(@location(0) position: vec2<f32>, @location(1) uv: vec2<f32>) -> Vert
     return out;
 }
 
+@group(0) @binding(0)
+var texture: texture_2d<f32>;
+@group(0) @binding(1)
+var sample: sampler;
+
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    return  vec4<f32>(in.uv, 0.0, 1.0);
+    return  textureSample(texture, sample, in.uv);
 }

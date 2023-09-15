@@ -1,11 +1,14 @@
 use wgpu::{
 	include_wgsl,
 	util::{BufferInitDescriptor, DeviceExt},
-	vertex_attr_array, BufferUsages, Color, ColorTargetState, ColorWrites, CompositeAlphaMode,
-	Device, FragmentState, IndexFormat, LoadOp, MultisampleState, Operations,
-	PipelineLayoutDescriptor, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
-	RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, Surface, SurfaceConfiguration,
-	TextureFormat, TextureUsages, VertexAttribute, VertexBufferLayout, VertexState, VertexStepMode,
+	vertex_attr_array, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+	BindGroupLayoutEntry, BindingResource, BindingType, BufferUsages, Color, ColorTargetState,
+	ColorWrites, CompositeAlphaMode, Device, Extent3d, FragmentState, IndexFormat, LoadOp,
+	MultisampleState, Operations, PipelineLayoutDescriptor, PresentMode, PrimitiveState,
+	PrimitiveTopology, Queue, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+	SamplerBindingType, ShaderStages, Surface, SurfaceConfiguration, TextureDescriptor,
+	TextureDimension, TextureFormat, TextureUsages, TextureViewDimension, VertexAttribute,
+	VertexBufferLayout, VertexState, VertexStepMode,
 };
 use winit::{
 	event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
@@ -71,9 +74,31 @@ async fn main() {
 		},
 	);
 
+	let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+		label: Some("BindGroup Layout"),
+		entries: &[
+			BindGroupLayoutEntry {
+				binding: 0,
+				visibility: ShaderStages::FRAGMENT,
+				ty: BindingType::Texture {
+					sample_type: wgpu::TextureSampleType::Float { filterable: false },
+					view_dimension: TextureViewDimension::D2,
+					multisampled: false,
+				},
+				count: None,
+			},
+			BindGroupLayoutEntry {
+				binding: 1,
+				visibility: ShaderStages::FRAGMENT,
+				ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
+				count: None,
+			},
+		],
+	});
+
 	let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
 		label: Some("Pipeline Layout"),
-		bind_group_layouts: &[],
+		bind_group_layouts: &[&bind_group_layout],
 		push_constant_ranges: &[],
 	});
 
@@ -114,6 +139,39 @@ async fn main() {
 		multiview: None,
 	});
 
+	let texture = device.create_texture(&TextureDescriptor {
+		label: Some("Texture"),
+		size: Extent3d {
+			width: 10,
+			height: 10,
+			depth_or_array_layers: 1,
+		},
+		mip_level_count: 1,
+		sample_count: 1,
+		dimension: TextureDimension::D2,
+		format: TextureFormat::Bgra8UnormSrgb,
+		usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+		view_formats: &[],
+	});
+
+	let view = texture.create_view(&Default::default());
+	let sampler = device.create_sampler(&Default::default());
+
+	let bind_group = device.create_bind_group(&BindGroupDescriptor {
+		label: Some("Texture BindGroup"),
+		layout: &bind_group_layout,
+		entries: &[
+			BindGroupEntry {
+				binding: 0,
+				resource: BindingResource::TextureView(&view),
+			},
+			BindGroupEntry {
+				binding: 1,
+				resource: BindingResource::Sampler(&sampler),
+			},
+		],
+	});
+
 	event_loop.run(move |event, _, controlflow| match event {
 		Event::WindowEvent {
 			window_id,
@@ -135,13 +193,19 @@ async fn main() {
 			window.request_redraw();
 		}
 		Event::RedrawRequested(window_id) if window.id() == window_id => {
-			draw(&surface, &device, &pipeline, &queue);
+			draw(&surface, &device, &pipeline, &bind_group, &queue);
 		}
 		_ => {}
 	});
 }
 
-fn draw(surface: &Surface, device: &Device, pipeline: &RenderPipeline, queue: &Queue) {
+fn draw(
+	surface: &Surface,
+	device: &Device,
+	pipeline: &RenderPipeline,
+	bind_group: &BindGroup,
+	queue: &Queue,
+) {
 	let output = surface
 		.get_current_texture()
 		.unwrap();
@@ -191,6 +255,8 @@ fn draw(surface: &Surface, device: &Device, pipeline: &RenderPipeline, queue: &Q
 		});
 
 		pass.set_pipeline(pipeline);
+		pass.set_bind_group(0, &bind_group, &[]);
+
 		pass.set_vertex_buffer(0, vertex_buffer.slice(..));
 		pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint16);
 		pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
