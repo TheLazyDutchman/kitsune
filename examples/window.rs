@@ -1,41 +1,21 @@
 use ab_glyph::FontRef;
+use kitsune::{
+	context::Context,
+	render::{Render, RenderContext, Vertex},
+	text::Font,
+	widget::{Widget, WidgetContext},
+};
 use wgpu::{
-	include_wgsl,
-	util::{BufferInitDescriptor, DeviceExt},
-	vertex_attr_array, BindGroup, BufferUsages, Color, ColorTargetState, ColorWrites,
-	CompositeAlphaMode, Device, FragmentState, IndexFormat, LoadOp, MultisampleState, Operations,
-	PipelineLayoutDescriptor, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
-	RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, Surface, SurfaceConfiguration,
-	TextureFormat, TextureUsages, VertexAttribute, VertexBufferLayout, VertexState, VertexStepMode,
+	include_wgsl, Color, ColorTargetState, ColorWrites, CompositeAlphaMode, Device, FragmentState,
+	LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor, PresentMode, PrimitiveState,
+	PrimitiveTopology, Queue, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+	Surface, SurfaceConfiguration, TextureFormat, TextureUsages, VertexState,
 };
 use winit::{
 	event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
 	event_loop::EventLoop,
 	window::Window,
 };
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-	position: [f32; 2],
-	uv: [f32; 2],
-}
-
-impl Vertex {
-	const LAYOUT: [VertexAttribute; 2] = vertex_attr_array![0 => Float32x2, 1 => Float32x2];
-
-	fn layout() -> VertexBufferLayout<'static> {
-		VertexBufferLayout {
-			array_stride: std::mem::size_of::<Self>() as u64,
-			step_mode: VertexStepMode::Vertex,
-			attributes: &Self::LAYOUT,
-		}
-	}
-
-	fn new(position: [f32; 2], uv: [f32; 2]) -> Self {
-		Self { position, uv }
-	}
-}
 
 #[tokio::main]
 async fn main() {
@@ -111,14 +91,12 @@ async fn main() {
 			entry_point: "fs_main",
 			targets: &[Some(ColorTargetState {
 				format: TextureFormat::Bgra8UnormSrgb,
-				blend: None,
+				blend: Some(wgpu::BlendState::ALPHA_BLENDING),
 				write_mask: ColorWrites::ALL,
 			})],
 		}),
 		multiview: None,
 	});
-
-	let bind_group = font.rasterize('9', &device, &queue);
 
 	event_loop.run(move |event, _, controlflow| match event {
 		Event::WindowEvent {
@@ -141,19 +119,13 @@ async fn main() {
 			window.request_redraw();
 		}
 		Event::RedrawRequested(window_id) if window.id() == window_id => {
-			draw(&surface, &device, &pipeline, &bind_group, &queue);
+			draw(&surface, &device, &pipeline, &queue, &font);
 		}
 		_ => {}
 	});
 }
 
-fn draw(
-	surface: &Surface,
-	device: &Device,
-	pipeline: &RenderPipeline,
-	bind_group: &BindGroup,
-	queue: &Queue,
-) {
+fn draw(surface: &Surface, device: &Device, pipeline: &RenderPipeline, queue: &Queue, font: &Font) {
 	let output = surface
 		.get_current_texture()
 		.unwrap();
@@ -161,27 +133,10 @@ fn draw(
 		.texture
 		.create_view(&Default::default());
 
-	let vertices = [
-		Vertex::new([-1.0, 1.0], [0.0, 0.0]),
-		Vertex::new([-1.0, -1.0], [0.0, 1.0]),
-		Vertex::new([1.0, 1.0], [1.0, 0.0]),
-		Vertex::new([1.0, -1.0], [1.0, 1.0]),
-	];
-	let indices: [u16; 6] = [0, 1, 2, 1, 3, 2];
-
-	let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-		label: Some("Vertex Buffer"),
-		contents: bytemuck::cast_slice(&vertices),
-		usage: BufferUsages::VERTEX,
-	});
-
-	let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
-		label: Some("Index Buffer"),
-		contents: bytemuck::cast_slice(&indices),
-		usage: BufferUsages::INDEX,
-	});
-
 	let mut encoder = device.create_command_encoder(&Default::default());
+
+	let mut context = Context::new(WidgetContext::new(&device, &queue, &font));
+	let widget = ('9', '8', '7', '6', '5', '4', '3').get_renderable(&mut context);
 
 	{
 		let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
@@ -203,11 +158,10 @@ fn draw(
 		});
 
 		pass.set_pipeline(pipeline);
-		pass.set_bind_group(0, &bind_group, &[]);
 
-		pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-		pass.set_index_buffer(index_buffer.slice(..), IndexFormat::Uint16);
-		pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
+		let mut context = Context::new(RenderContext::new(pass));
+
+		widget.render(&mut context);
 	}
 
 	queue.submit(Some(encoder.finish()));

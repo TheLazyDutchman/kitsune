@@ -66,20 +66,22 @@ impl Font {
 			view_formats: &[],
 		});
 
-		let mut data = vec![255; (4 * size.width * size.height) as usize];
+		let mut data = vec![0; (4 * size.width * size.height) as usize];
 
 		self.font
 			.outline_glyph(glyph)
 			.unwrap()
 			.draw(|x, y, c| {
-				let value = (255.0 * (1.0 - c)) as u8;
+				let color_value = 0;
+				let alpha_value = (255.0 * c) as u8;
+
 				let index = size.width * y + x;
 				let index = index as usize * 4;
 
-				data[index] = value;
-				data[index + 1] = value;
-				data[index + 2] = value;
-				data[index + 3] = value;
+				data[index] = color_value;
+				data[index + 1] = color_value;
+				data[index + 2] = color_value;
+				data[index + 3] = alpha_value;
 			});
 
 		queue.write_texture(
