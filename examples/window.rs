@@ -1,16 +1,12 @@
-use ab_glyph::{Font, FontRef};
+use ab_glyph::FontRef;
 use wgpu::{
 	include_wgsl,
 	util::{BufferInitDescriptor, DeviceExt},
-	vertex_attr_array, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-	BindGroupLayoutEntry, BindingResource, BindingType, BufferUsages, Color, ColorTargetState,
-	ColorWrites, CompositeAlphaMode, Device, Extent3d, FragmentState, ImageCopyTexture,
-	IndexFormat, LoadOp, MultisampleState, Operations, Origin3d, PipelineLayoutDescriptor,
-	PresentMode, PrimitiveState, PrimitiveTopology, Queue, RenderPassDescriptor, RenderPipeline,
-	RenderPipelineDescriptor, SamplerBindingType, ShaderStages, Surface, SurfaceConfiguration,
-	TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType,
-	TextureUsages, TextureViewDimension, VertexAttribute, VertexBufferLayout, VertexState,
-	VertexStepMode,
+	vertex_attr_array, BindGroup, BufferUsages, Color, ColorTargetState, ColorWrites,
+	CompositeAlphaMode, Device, FragmentState, IndexFormat, LoadOp, MultisampleState, Operations,
+	PipelineLayoutDescriptor, PresentMode, PrimitiveState, PrimitiveTopology, Queue,
+	RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, Surface, SurfaceConfiguration,
+	TextureFormat, TextureUsages, VertexAttribute, VertexBufferLayout, VertexState, VertexStepMode,
 };
 use winit::{
 	event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
@@ -76,31 +72,12 @@ async fn main() {
 		},
 	);
 
-	let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-		label: Some("BindGroup Layout"),
-		entries: &[
-			BindGroupLayoutEntry {
-				binding: 0,
-				visibility: ShaderStages::FRAGMENT,
-				ty: BindingType::Texture {
-					sample_type: TextureSampleType::Float { filterable: false },
-					view_dimension: TextureViewDimension::D2,
-					multisampled: false,
-				},
-				count: None,
-			},
-			BindGroupLayoutEntry {
-				binding: 1,
-				visibility: ShaderStages::FRAGMENT,
-				ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
-				count: None,
-			},
-		],
-	});
+	let font = FontRef::try_from_slice(include_bytes!("../res/Roboto/Roboto-Medium.ttf")).unwrap();
+	let font = kitsune::text::Font::new(font, &device);
 
 	let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
 		label: Some("Pipeline Layout"),
-		bind_group_layouts: &[&bind_group_layout],
+		bind_group_layouts: &[&font.binding_layout()],
 		push_constant_ranges: &[],
 	});
 
@@ -141,82 +118,7 @@ async fn main() {
 		multiview: None,
 	});
 
-	let font = FontRef::try_from_slice(include_bytes!("../res/Roboto/Roboto-Medium.ttf")).unwrap();
-
-	let glyph = font
-		.glyph_id('g')
-		.with_scale(100.0);
-
-	let size = font.glyph_bounds(&glyph);
-
-	let texture_size = Extent3d {
-		width: size.width() as u32,
-		height: size.height() as u32,
-		depth_or_array_layers: 1,
-	};
-
-	let texture = device.create_texture(&TextureDescriptor {
-		label: Some("Texture"),
-		mip_level_count: 1,
-		sample_count: 1,
-		size: texture_size,
-		dimension: TextureDimension::D2,
-		format: TextureFormat::Bgra8UnormSrgb,
-		usage: TextureUsages::RENDER_ATTACHMENT
-			| TextureUsages::TEXTURE_BINDING
-			| TextureUsages::COPY_DST,
-		view_formats: &[],
-	});
-
-	let mut data = vec![255; 4 * texture_size.width as usize * texture_size.height as usize];
-
-	font.outline_glyph(glyph)
-		.unwrap()
-		.draw(|x, y, c| {
-			let value = (255.0 * (1.0 - c)) as u8;
-
-			let index = y * texture_size.width + x;
-			let index = index as usize * 4;
-
-			data[index] = value;
-			data[index + 1] = value;
-			data[index + 2] = value;
-			data[index + 3] = value;
-		});
-
-	queue.write_texture(
-		ImageCopyTexture {
-			texture: &texture,
-			mip_level: 0,
-			origin: Origin3d { x: 0, y: 0, z: 0 },
-			aspect: TextureAspect::All,
-		},
-		&data,
-		wgpu::ImageDataLayout {
-			offset: 0,
-			bytes_per_row: Some(4 * texture_size.width),
-			rows_per_image: Some(texture_size.height),
-		},
-		texture_size,
-	);
-
-	let view = texture.create_view(&Default::default());
-	let sampler = device.create_sampler(&Default::default());
-
-	let bind_group = device.create_bind_group(&BindGroupDescriptor {
-		label: Some("Texture BindGroup"),
-		layout: &bind_group_layout,
-		entries: &[
-			BindGroupEntry {
-				binding: 0,
-				resource: BindingResource::TextureView(&view),
-			},
-			BindGroupEntry {
-				binding: 1,
-				resource: BindingResource::Sampler(&sampler),
-			},
-		],
-	});
+	let bind_group = font.rasterize('9', &device, &queue);
 
 	event_loop.run(move |event, _, controlflow| match event {
 		Event::WindowEvent {
