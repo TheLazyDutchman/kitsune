@@ -597,6 +597,7 @@ dependencies = [
 name = "kitsune"
 version = "0.1.0"
 dependencies = [
+ "ab_glyph",
  "bytemuck",
  "tokio",
  "wgpu",

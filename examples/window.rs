@@ -1,14 +1,16 @@
+use ab_glyph::{Font, FontRef};
 use wgpu::{
 	include_wgsl,
 	util::{BufferInitDescriptor, DeviceExt},
 	vertex_attr_array, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
 	BindGroupLayoutEntry, BindingResource, BindingType, BufferUsages, Color, ColorTargetState,
-	ColorWrites, CompositeAlphaMode, Device, Extent3d, FragmentState, IndexFormat, LoadOp,
-	MultisampleState, Operations, PipelineLayoutDescriptor, PresentMode, PrimitiveState,
-	PrimitiveTopology, Queue, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
-	SamplerBindingType, ShaderStages, Surface, SurfaceConfiguration, TextureDescriptor,
-	TextureDimension, TextureFormat, TextureUsages, TextureViewDimension, VertexAttribute,
-	VertexBufferLayout, VertexState, VertexStepMode,
+	ColorWrites, CompositeAlphaMode, Device, Extent3d, FragmentState, ImageCopyTexture,
+	IndexFormat, LoadOp, MultisampleState, Operations, Origin3d, PipelineLayoutDescriptor,
+	PresentMode, PrimitiveState, PrimitiveTopology, Queue, RenderPassDescriptor, RenderPipeline,
+	RenderPipelineDescriptor, SamplerBindingType, ShaderStages, Surface, SurfaceConfiguration,
+	TextureAspect, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType,
+	TextureUsages, TextureViewDimension, VertexAttribute, VertexBufferLayout, VertexState,
+	VertexStepMode,
 };
 use winit::{
 	event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
@@ -81,7 +83,7 @@ async fn main() {
 				binding: 0,
 				visibility: ShaderStages::FRAGMENT,
 				ty: BindingType::Texture {
-					sample_type: wgpu::TextureSampleType::Float { filterable: false },
+					sample_type: TextureSampleType::Float { filterable: false },
 					view_dimension: TextureViewDimension::D2,
 					multisampled: false,
 				},
@@ -139,20 +141,64 @@ async fn main() {
 		multiview: None,
 	});
 
+	let font = FontRef::try_from_slice(include_bytes!("../res/Roboto/Roboto-Medium.ttf")).unwrap();
+
+	let glyph = font
+		.glyph_id('g')
+		.with_scale(100.0);
+
+	let size = font.glyph_bounds(&glyph);
+
+	let texture_size = Extent3d {
+		width: size.width() as u32,
+		height: size.height() as u32,
+		depth_or_array_layers: 1,
+	};
+
 	let texture = device.create_texture(&TextureDescriptor {
 		label: Some("Texture"),
-		size: Extent3d {
-			width: 10,
-			height: 10,
-			depth_or_array_layers: 1,
-		},
 		mip_level_count: 1,
 		sample_count: 1,
+		size: texture_size,
 		dimension: TextureDimension::D2,
 		format: TextureFormat::Bgra8UnormSrgb,
-		usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+		usage: TextureUsages::RENDER_ATTACHMENT
+			| TextureUsages::TEXTURE_BINDING
+			| TextureUsages::COPY_DST,
 		view_formats: &[],
 	});
+
+	let mut data = vec![255; 4 * texture_size.width as usize * texture_size.height as usize];
+
+	font.outline_glyph(glyph)
+		.unwrap()
+		.draw(|x, y, c| {
+			let value = (255.0 * (1.0 - c)) as u8;
+
+			let index = y * texture_size.width + x;
+			let index = index as usize * 4;
+
+			data[index] = value;
+			data[index + 1] = value;
+			data[index + 2] = value;
+			data[index + 3] = value;
+		});
+
+	queue.write_texture(
+		ImageCopyTexture {
+			texture: &texture,
+			mip_level: 0,
+			origin: Origin3d { x: 0, y: 0, z: 0 },
+			aspect: TextureAspect::All,
+		},
+		&data,
+		wgpu::ImageDataLayout {
+			offset: 0,
+			bytes_per_row: Some(4 * texture_size.width),
+			rows_per_image: Some(texture_size.height),
+		},
+		texture_size,
+	);
 
 	let view = texture.create_view(&Default::default());
 	let sampler = device.create_sampler(&Default::default());
