@@ -600,6 +600,7 @@ dependencies = [
  "ab_glyph",
  "bytemuck",
  "paste",
+ "thiserror",
  "tokio",
  "wgpu",
  "winit",
