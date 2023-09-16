@@ -40,6 +40,7 @@ mod impls {
 	use super::*;
 	use crate::view::VirtualPosition;
 
+	#[cfg(feature = "text")]
 	impl Widget for char {
 		type Renderable = RenderedMesh;
 
