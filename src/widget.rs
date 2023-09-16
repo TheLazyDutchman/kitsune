@@ -58,13 +58,13 @@ mod impls {
 					context
 						.view
 						.globalize(VirtualPosition::new(0.0, 1.0)),
-					[1.0, 0.0],
+					[0.0, 1.0],
 				),
 				Vertex::new(
 					context
 						.view
 						.globalize(VirtualPosition::new(1.0, 0.0)),
-					[0.0, 1.0],
+					[1.0, 0.0],
 				),
 				Vertex::new(
 					context

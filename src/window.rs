@@ -5,6 +5,8 @@ use winit::{
 	event_loop::EventLoop,
 };
 
+use crate::widget::Widget;
+
 type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Error)]
@@ -44,7 +46,7 @@ mod inner {
 		widget::{Widget, WidgetContext},
 	};
 
-	pub(super) struct WindowInner {
+	pub struct WindowInner<T> {
 		window: Window,
 		device: wgpu::Device,
 		queue: wgpu::Queue,
@@ -53,10 +55,11 @@ mod inner {
 		global_view: GlobalView,
 		font: Font,
 		size: winit::dpi::PhysicalSize<u32>,
+		widget: T,
 	}
 
-	impl WindowInner {
-		pub async fn new(event_loop: &EventLoop<()>) -> Result<Self> {
+	impl<T: Widget> WindowInner<T> {
+		pub async fn new(event_loop: &EventLoop<()>, widget: T) -> Result<Self> {
 			let window = Window::new(event_loop)?;
 
 			let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -135,7 +138,7 @@ mod inner {
 					entry_point: "fs_main",
 					targets: &[Some(wgpu::ColorTargetState {
 						format: config.format,
-						blend: Some(wgpu::BlendState::REPLACE),
+						blend: Some(wgpu::BlendState::ALPHA_BLENDING),
 						write_mask: wgpu::ColorWrites::ALL,
 					})],
 				}),
@@ -159,6 +162,8 @@ mod inner {
 
 			let global_view = GlobalView::new(size);
 
+			dbg!(global_view, size);
+
 			Ok(Self {
 				window,
 				size,
@@ -168,6 +173,7 @@ mod inner {
 				font,
 				pipeline,
 				global_view,
+				widget,
 			})
 		}
 
@@ -202,7 +208,9 @@ mod inner {
 				view,
 			));
 
-			let widget = '9'.get_renderable(&mut context);
+			let widget = self
+				.widget
+				.get_renderable(&mut context);
 
 			{
 				let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -240,20 +248,23 @@ mod inner {
 	}
 }
 
-pub struct Window {
-	inner: WindowInner,
+pub struct Window<T> {
+	inner: WindowInner<T>,
 	event_loop: EventLoop<()>,
 }
 
-impl Window {
-	pub async fn new() -> Result<Self> {
+impl<T: Widget> Window<T> {
+	pub async fn new(widget: T) -> Result<Self> {
 		let event_loop = EventLoop::new();
-		let inner = WindowInner::new(&event_loop).await?;
+		let inner = WindowInner::new(&event_loop, widget).await?;
 
 		Ok(Self { event_loop, inner })
 	}
 
-	pub fn run(mut self) -> ! {
+	pub fn run(mut self) -> !
+	where
+		T: 'static,
+	{
 		self.event_loop
 			.run(move |event, _, control_flow| match event {
 				Event::WindowEvent {

@@ -4,7 +4,7 @@ use kitsune_ui::window::Window;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let window = Window::new().await?;
+	let window = Window::new('a').await?;
 
 	window.run();
 }
