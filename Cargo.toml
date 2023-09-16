@@ -1,6 +1,6 @@
 [package]
-name = "kitsune"
-authors = ["Jochem Pouwels"]
+name = "kitsune_ui"
+authors = ["HummingPhoenix <jjpouwels2004@gmail.com>"]
 description = "A retained-mode UI library in rust"
 keywords = ["UI", "graphics"]
 version = "0.1.0"
