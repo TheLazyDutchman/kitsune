@@ -1,8 +1,9 @@
 use ab_glyph::FontRef;
-use kitsune::{
+use kitsune_ui::{
 	context::Context,
 	render::{Render, RenderContext, Vertex},
 	text::Font,
+	view::{GlobalView, View},
 	widget::{Widget, WidgetContext},
 };
 use wgpu::{
@@ -53,7 +54,7 @@ async fn main() {
 	);
 
 	let font = FontRef::try_from_slice(include_bytes!("../res/Roboto/Roboto-Medium.ttf")).unwrap();
-	let font = kitsune::text::Font::new(font, &device);
+	let font = Font::new(font, &device);
 
 	let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
 		label: Some("Pipeline Layout"),
@@ -98,6 +99,18 @@ async fn main() {
 		multiview: None,
 	});
 
+	let global_view = GlobalView::new(size);
+	let view = global_view.view(
+		winit::dpi::PhysicalSize {
+			width: size.width / 2,
+			height: size.height / 2,
+		},
+		winit::dpi::PhysicalPosition {
+			x: size.width / 2,
+			y: 0,
+		},
+	);
+
 	event_loop.run(move |event, _, controlflow| match event {
 		Event::WindowEvent {
 			window_id,
@@ -119,30 +132,37 @@ async fn main() {
 			window.request_redraw();
 		}
 		Event::RedrawRequested(window_id) if window.id() == window_id => {
-			draw(&surface, &device, &pipeline, &queue, &font);
+			draw(&surface, &device, &pipeline, &queue, &font, view);
 		}
 		_ => {}
 	});
 }
 
-fn draw(surface: &Surface, device: &Device, pipeline: &RenderPipeline, queue: &Queue, font: &Font) {
+fn draw(
+	surface: &Surface,
+	device: &Device,
+	pipeline: &RenderPipeline,
+	queue: &Queue,
+	font: &Font,
+	view: View,
+) {
 	let output = surface
 		.get_current_texture()
 		.unwrap();
-	let view = output
+	let texture_view = output
 		.texture
 		.create_view(&Default::default());
 
 	let mut encoder = device.create_command_encoder(&Default::default());
 
-	let mut context = Context::new(WidgetContext::new(&device, &queue, &font));
+	let mut context = Context::new(WidgetContext::new(&device, &queue, &font, view));
 	let widget = ('9', '8', '7', '6', '5', '4', '3').get_renderable(&mut context);
 
 	{
 		let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
 			label: Some("Render Pass"),
 			color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-				view: &view,
+				view: &texture_view,
 				resolve_target: None,
 				ops: Operations {
 					load: LoadOp::Clear(Color {

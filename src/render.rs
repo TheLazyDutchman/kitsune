@@ -1,6 +1,6 @@
 use wgpu::util::DeviceExt;
 
-use crate::context::Context;
+use crate::{context::Context, view::GlobalPosition};
 
 pub trait Render {
 	fn render<'a, 'b>(&'a self, context: &mut Context<RenderContext<'b>>)
@@ -11,7 +11,7 @@ pub trait Render {
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
-	position: [f32; 2],
+	position: GlobalPosition,
 	uv: [f32; 2],
 }
 
@@ -27,7 +27,7 @@ impl Vertex {
 		}
 	}
 
-	pub fn new(position: [f32; 2], uv: [f32; 2]) -> Self {
+	pub fn new(position: GlobalPosition, uv: [f32; 2]) -> Self {
 		Self { position, uv }
 	}
 }
@@ -79,28 +79,32 @@ impl RenderedMesh {
 	}
 }
 
-impl Render for RenderedMesh {
-	fn render<'a, 'b>(&'a self, context: &mut Context<RenderContext<'b>>)
-	where
-		'a: 'b,
-	{
-		context
-			.pass
-			.set_bind_group(0, &self.bind_group, &[]);
-		context
-			.pass
-			.set_vertex_buffer(0, self.vertices.slice(..));
-		context
-			.pass
-			.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint16);
-		context
-			.pass
-			.draw_indexed(0..self.num_indices, 0, 0..1);
-	}
-}
+mod impls {
+	use paste::paste;
 
-use paste::paste;
-macro_rules! tuple_impl {
+	use super::*;
+
+	impl Render for RenderedMesh {
+		fn render<'a, 'b>(&'a self, context: &mut Context<RenderContext<'b>>)
+		where
+			'a: 'b,
+		{
+			context
+				.pass
+				.set_bind_group(0, &self.bind_group, &[]);
+			context
+				.pass
+				.set_vertex_buffer(0, self.vertices.slice(..));
+			context
+				.pass
+				.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint16);
+			context
+				.pass
+				.draw_indexed(0..self.num_indices, 0, 0..1);
+		}
+	}
+
+	macro_rules! tuple_impl {
     ($($name:ident),*) => {
         impl<$($name: Render),*> Render for ($($name),*) {
         	fn render<'a, 'b>(&'a self, context: &mut crate::context::Context<crate::render::RenderContext<'b>>) where 'a: 'b{
@@ -115,7 +119,7 @@ macro_rules! tuple_impl {
     };
 }
 
-macro_rules! tuples_impl {
+	macro_rules! tuples_impl {
 	($(($($name:ident),*)),*) => {
 	    $(
 	        tuple_impl!($($name),*);
@@ -123,12 +127,13 @@ macro_rules! tuples_impl {
 	};
 }
 
-tuples_impl!(
-	(A, B),
-	(A, B, C),
-	(A, B, C, D),
-	(A, B, C, D, E),
-	(A, B, C, D, E, F),
-	(A, B, C, D, E, F, G),
-	(A, B, C, D, E, F, G, H)
-);
+	tuples_impl!(
+		(A, B),
+		(A, B, C),
+		(A, B, C, D),
+		(A, B, C, D, E),
+		(A, B, C, D, E, F),
+		(A, B, C, D, E, F, G),
+		(A, B, C, D, E, F, G, H)
+	);
+}
