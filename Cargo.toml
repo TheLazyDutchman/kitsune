@@ -1,5 +1,8 @@
 [package]
 name = "kitsune"
+authors = ["Jochem Pouwels"]
+description = "A retained-mode UI library in rust"
+keywords = ["UI", "graphics"]
 version = "0.1.0"
 edition = "2021"
 
