@@ -1,5 +1,7 @@
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 
+use crate::render::Vertex;
+
 #[derive(Debug, Clone, Copy)]
 pub struct GlobalView {
 	size: PhysicalSize<u32>,
@@ -76,6 +78,22 @@ impl View {
 			));
 		}
 		values
+	}
+
+	pub fn bordered(self, width: u32) -> (Self, Self) {
+		let size = PhysicalSize::new(self.size.width - 2 * width, self.size.height - 2 * width);
+		let offset = PhysicalPosition::new(self.offset.x + width, self.offset.y + width);
+		let inner = self.global.view(size, offset);
+		(self, inner)
+	}
+
+	pub fn corners(&self) -> [Vertex; 4] {
+		[
+			Vertex::new(self.globalize(VirtualPosition::new(0.0, 0.0)), [0.0, 0.0]),
+			Vertex::new(self.globalize(VirtualPosition::new(0.0, 1.0)), [0.0, 1.0]),
+			Vertex::new(self.globalize(VirtualPosition::new(1.0, 0.0)), [1.0, 0.0]),
+			Vertex::new(self.globalize(VirtualPosition::new(1.0, 1.0)), [1.0, 1.0]),
+		]
 	}
 }
 

@@ -1,10 +1,11 @@
 use std::error::Error;
 
-use kitsune_ui::window::Window;
+use kitsune_ui::{widget::Bordered, window::Window};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let window = Window::new("Hello, World!".to_string()).await?;
+	let widget = Bordered::new("Hello, World".to_string(), 4);
+	let window = Window::new(widget).await?;
 
 	window.run();
 }

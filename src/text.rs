@@ -3,38 +3,11 @@ use wgpu::TextureUsages;
 
 pub struct Font {
 	font: FontRef<'static>,
-	layout: wgpu::BindGroupLayout,
 }
 
 impl Font {
-	pub fn new(font: FontRef<'static>, device: &wgpu::Device) -> Self {
-		let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-			label: None,
-			entries: &[
-				wgpu::BindGroupLayoutEntry {
-					binding: 0,
-					visibility: wgpu::ShaderStages::FRAGMENT,
-					ty: wgpu::BindingType::Texture {
-						sample_type: wgpu::TextureSampleType::Float { filterable: true },
-						view_dimension: wgpu::TextureViewDimension::D2,
-						multisampled: false,
-					},
-					count: None,
-				},
-				wgpu::BindGroupLayoutEntry {
-					binding: 1,
-					visibility: wgpu::ShaderStages::FRAGMENT,
-					ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-					count: None,
-				},
-			],
-		});
-
-		Self { font, layout }
-	}
-
-	pub fn binding_layout(&self) -> &wgpu::BindGroupLayout {
-		&self.layout
+	pub fn new(font: FontRef<'static>) -> Self {
+		Self { font }
 	}
 
 	pub fn rasterize(
@@ -42,6 +15,8 @@ impl Font {
 		value: char,
 		device: &wgpu::Device,
 		queue: &wgpu::Queue,
+		sampler: &wgpu::Sampler,
+		layout: &wgpu::BindGroupLayout,
 	) -> Option<wgpu::BindGroup> {
 		let glyph = self
 			.font
@@ -104,20 +79,9 @@ impl Font {
 
 		let view = texture.create_view(&Default::default());
 
-		let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-			label: None,
-			address_mode_u: wgpu::AddressMode::ClampToEdge,
-			address_mode_v: wgpu::AddressMode::ClampToEdge,
-			address_mode_w: wgpu::AddressMode::ClampToEdge,
-			mag_filter: wgpu::FilterMode::Linear,
-			min_filter: wgpu::FilterMode::Linear,
-			mipmap_filter: wgpu::FilterMode::Nearest,
-			..Default::default()
-		});
-
 		Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
 			label: None,
-			layout: &self.layout,
+			layout: &layout,
 			entries: &[
 				wgpu::BindGroupEntry {
 					binding: 0,

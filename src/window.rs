@@ -50,12 +50,15 @@ mod inner {
 		window: Window,
 		device: wgpu::Device,
 		queue: wgpu::Queue,
+		config: wgpu::SurfaceConfiguration,
 		surface: wgpu::Surface,
 		pipeline: wgpu::RenderPipeline,
 		global_view: GlobalView,
 		font: Font,
 		size: winit::dpi::PhysicalSize<u32>,
 		widget: T,
+		bind_group_layout: wgpu::BindGroupLayout,
+		sampler: wgpu::Sampler,
 	}
 
 	impl<T: Widget> WindowInner<T> {
@@ -112,16 +115,49 @@ mod inner {
 
 			surface.configure(&device, &config);
 
-			let font = Font::new(
-				FontRef::try_from_slice(include_bytes!("../res/Roboto/Roboto-Medium.ttf"))?,
-				&device,
-			);
+			let bind_group_layout =
+				device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+					label: None,
+					entries: &[
+						wgpu::BindGroupLayoutEntry {
+							binding: 0,
+							visibility: wgpu::ShaderStages::FRAGMENT,
+							ty: wgpu::BindingType::Texture {
+								sample_type: wgpu::TextureSampleType::Float { filterable: true },
+								view_dimension: wgpu::TextureViewDimension::D2,
+								multisampled: false,
+							},
+							count: None,
+						},
+						wgpu::BindGroupLayoutEntry {
+							binding: 1,
+							visibility: wgpu::ShaderStages::FRAGMENT,
+							ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+							count: None,
+						},
+					],
+				});
+
+			let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+				label: None,
+				address_mode_u: wgpu::AddressMode::ClampToEdge,
+				address_mode_v: wgpu::AddressMode::ClampToEdge,
+				address_mode_w: wgpu::AddressMode::ClampToEdge,
+				mag_filter: wgpu::FilterMode::Linear,
+				min_filter: wgpu::FilterMode::Linear,
+				mipmap_filter: wgpu::FilterMode::Nearest,
+				..Default::default()
+			});
+
+			let font = Font::new(FontRef::try_from_slice(include_bytes!(
+				"../res/Roboto/Roboto-Medium.ttf"
+			))?);
 
 			let shader = device.create_shader_module(wgpu::include_wgsl!("shader.wgsl"));
 
 			let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
 				label: Some("Render Pipeline Layout"),
-				bind_group_layouts: &[font.binding_layout()],
+				bind_group_layouts: &[&bind_group_layout],
 				push_constant_ranges: &[],
 			});
 
@@ -167,11 +203,14 @@ mod inner {
 				size,
 				device,
 				queue,
+				config,
 				surface,
 				font,
 				pipeline,
 				global_view,
 				widget,
+				sampler,
+				bind_group_layout,
 			})
 		}
 
@@ -199,8 +238,14 @@ mod inner {
 				.global_view
 				.view(self.size, winit::dpi::PhysicalPosition::new(0, 0));
 
-			let mut context =
-				Context::new(WidgetContext::new(&self.device, &self.queue, &self.font));
+			let mut context = Context::new(WidgetContext::new(
+				&self.font,
+				&self.device,
+				&self.queue,
+				&self.config,
+				&self.sampler,
+				&self.bind_group_layout,
+			));
 
 			let widget = self
 				.widget
