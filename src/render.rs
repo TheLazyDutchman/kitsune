@@ -104,6 +104,34 @@ mod impls {
 		}
 	}
 
+	impl<T> Render for Vec<T>
+	where
+		T: Render,
+	{
+		fn render<'a, 'b>(&'a self, context: &mut Context<RenderContext<'b>>)
+		where
+			'a: 'b,
+		{
+			for renderable in self {
+				renderable.render(context);
+			}
+		}
+	}
+
+	impl<T> Render for Option<T>
+	where
+		T: Render,
+	{
+		fn render<'a, 'b>(&'a self, context: &mut Context<RenderContext<'b>>)
+		where
+			'a: 'b,
+		{
+			if let Some(renderable) = self {
+				renderable.render(context);
+			}
+		}
+	}
+
 	macro_rules! tuple_impl {
     ($($name:ident),*) => {
         impl<$($name: Render),*> Render for ($($name),*) {

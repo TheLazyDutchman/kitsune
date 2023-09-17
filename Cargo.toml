@@ -3,7 +3,7 @@ name = "kitsune_ui"
 authors = ["HummingPhoenix <jjpouwels2004@gmail.com>"]
 description = "A retained-mode UI library in rust"
 keywords = ["UI", "graphics"]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 

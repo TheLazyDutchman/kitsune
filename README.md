@@ -10,7 +10,7 @@ This is a retained mode User Interface library.
 
 - [ ] Dont compile things that haven't changed.
 - [ ] Add macro to implement `widget` for user types.
-- [ ] Add ways to layout values, and control their size.
+- [x] Add ways to layout values, and control their size.
 - [ ] Find a way to do user input.
 - [ ] Maybe find a way to changed state based on Non-user events.
 

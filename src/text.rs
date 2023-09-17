@@ -42,13 +42,18 @@ impl Font {
 		value: char,
 		device: &wgpu::Device,
 		queue: &wgpu::Queue,
-	) -> wgpu::BindGroup {
+	) -> Option<wgpu::BindGroup> {
 		let glyph = self
 			.font
 			.glyph_id(value)
 			.with_scale(100.0);
 
 		let size = self.font.glyph_bounds(&glyph);
+
+		let outlined_glyph = self
+			.font
+			.outline_glyph(glyph)?;
+
 		let size = wgpu::Extent3d {
 			width: size.width() as u32,
 			height: size.height() as u32,
@@ -68,21 +73,18 @@ impl Font {
 
 		let mut data = vec![0; (4 * size.width * size.height) as usize];
 
-		self.font
-			.outline_glyph(glyph)
-			.unwrap()
-			.draw(|x, y, c| {
-				let color_value = 0;
-				let alpha_value = (255.0 * c) as u8;
+		outlined_glyph.draw(|x, y, c| {
+			let color_value = 0;
+			let alpha_value = (255.0 * c) as u8;
 
-				let index = size.width * y + x;
-				let index = index as usize * 4;
+			let index = size.width * y + x;
+			let index = index as usize * 4;
 
-				data[index] = color_value;
-				data[index + 1] = color_value;
-				data[index + 2] = color_value;
-				data[index + 3] = alpha_value;
-			});
+			data[index] = color_value;
+			data[index + 1] = color_value;
+			data[index + 2] = color_value;
+			data[index + 3] = alpha_value;
+		});
 
 		queue.write_texture(
 			wgpu::ImageCopyTexture {
@@ -113,7 +115,7 @@ impl Font {
 			..Default::default()
 		});
 
-		device.create_bind_group(&wgpu::BindGroupDescriptor {
+		Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
 			label: None,
 			layout: &self.layout,
 			entries: &[
@@ -126,6 +128,6 @@ impl Font {
 					resource: wgpu::BindingResource::Sampler(&sampler),
 				},
 			],
-		})
+		}))
 	}
 }

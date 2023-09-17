@@ -19,7 +19,7 @@ impl GlobalView {
 	}
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct View {
 	global: GlobalView,
 	size: PhysicalSize<u32>,
@@ -48,6 +48,34 @@ impl View {
 		let y = y * -2.0 + 1.0;
 
 		GlobalPosition { x, y }
+	}
+
+	pub fn split_row(self, count: u32) -> Vec<Self> {
+		let width = self.size.width / count;
+		let size = PhysicalSize::new(width, self.size.height);
+
+		let mut values = vec![];
+		for i in 0..count {
+			values.push(self.global.view(
+				size,
+				PhysicalPosition::new(self.offset.x + i * width, self.offset.y),
+			));
+		}
+		values
+	}
+
+	pub fn split_column(self, count: u32) -> Vec<Self> {
+		let height = self.size.height / count;
+		let size = PhysicalSize::new(self.size.width, height);
+
+		let mut values = vec![];
+		for i in 0..count {
+			values.push(self.global.view(
+				size,
+				PhysicalPosition::new(self.offset.x, self.offset.y + i * height),
+			));
+		}
+		values
 	}
 }
 

@@ -8,29 +8,74 @@ use crate::{
 pub trait Widget {
 	type Renderable: Render;
 
-	fn get_renderable(&mut self, context: &mut Context<WidgetContext>) -> Self::Renderable;
+	fn get_renderable(
+		&mut self,
+		context: &mut Context<WidgetContext>,
+		view: View,
+	) -> Self::Renderable;
 }
 
 pub struct WidgetContext<'a> {
 	font: &'a Font,
 	device: &'a wgpu::Device,
 	queue: &'a wgpu::Queue,
-	view: View,
 }
 
 impl<'a> WidgetContext<'a> {
-	pub fn new(
-		device: &'a wgpu::Device,
-		queue: &'a wgpu::Queue,
-		font: &'a Font,
-		view: View,
-	) -> Self {
+	pub fn new(device: &'a wgpu::Device, queue: &'a wgpu::Queue, font: &'a Font) -> Self {
 		Self {
 			device,
 			font,
 			queue,
-			view,
 		}
+	}
+}
+
+pub struct Row<T> {
+	values: Vec<T>,
+}
+
+impl<T> Row<T> {
+	pub fn new(values: Vec<T>) -> Self {
+		Self { values }
+	}
+}
+
+impl<T> std::ops::Deref for Row<T> {
+	type Target = Vec<T>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.values
+	}
+}
+
+impl<T> std::ops::DerefMut for Row<T> {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.values
+	}
+}
+
+pub struct Column<T> {
+	values: Vec<T>,
+}
+
+impl<T> Column<T> {
+	pub fn new(values: Vec<T>) -> Self {
+		Self { values }
+	}
+}
+
+impl<T> std::ops::Deref for Column<T> {
+	type Target = Vec<T>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.values
+	}
+}
+
+impl<T> std::ops::DerefMut for Column<T> {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.values
 	}
 }
 
@@ -42,46 +87,94 @@ mod impls {
 
 	#[cfg(feature = "text")]
 	impl Widget for char {
-		type Renderable = RenderedMesh;
+		type Renderable = Option<RenderedMesh>;
 
 		fn get_renderable(
 			&mut self,
 			context: &mut crate::context::Context<WidgetContext>,
+			view: View,
 		) -> Self::Renderable {
+			let Some(bind_group) = context
+				.font
+				.rasterize(*self, context.device, context.queue)
+			else {
+				return None;
+			};
+
 			let vertices = [
-				Vertex::new(
-					context
-						.view
-						.globalize(VirtualPosition::new(0.0, 0.0)),
-					[0.0, 0.0],
-				),
-				Vertex::new(
-					context
-						.view
-						.globalize(VirtualPosition::new(0.0, 1.0)),
-					[0.0, 1.0],
-				),
-				Vertex::new(
-					context
-						.view
-						.globalize(VirtualPosition::new(1.0, 0.0)),
-					[1.0, 0.0],
-				),
-				Vertex::new(
-					context
-						.view
-						.globalize(VirtualPosition::new(1.0, 1.0)),
-					[1.0, 1.0],
-				),
+				Vertex::new(view.globalize(VirtualPosition::new(0.0, 0.0)), [0.0, 0.0]),
+				Vertex::new(view.globalize(VirtualPosition::new(0.0, 1.0)), [0.0, 1.0]),
+				Vertex::new(view.globalize(VirtualPosition::new(1.0, 0.0)), [1.0, 0.0]),
+				Vertex::new(view.globalize(VirtualPosition::new(1.0, 1.0)), [1.0, 1.0]),
 			];
 
 			let indices = [0, 1, 2, 1, 3, 2];
 
-			let bind_group = context
-				.font
-				.rasterize(*self, context.device, context.queue);
+			Some(RenderedMesh::new(
+				context.device,
+				&vertices,
+				&indices,
+				bind_group,
+			))
+		}
+	}
 
-			RenderedMesh::new(context.device, &vertices, &indices, bind_group)
+	#[cfg(feature = "text")]
+	impl Widget for String {
+		type Renderable = Vec<RenderedMesh>;
+
+		fn get_renderable(
+			&mut self,
+			context: &mut Context<WidgetContext>,
+			view: View,
+		) -> Self::Renderable {
+			Row::new(self.chars().collect())
+				.get_renderable(context, view)
+				.into_iter()
+				.filter_map(|x| x)
+				.collect()
+		}
+	}
+
+	impl<T> Widget for Row<T>
+	where
+		T: Widget,
+	{
+		type Renderable = Vec<T::Renderable>;
+
+		fn get_renderable(
+			&mut self,
+			context: &mut Context<WidgetContext>,
+			view: View,
+		) -> Self::Renderable {
+			let views = view.split_row(self.values.len() as u32);
+
+			self.values
+				.iter_mut()
+				.zip(views)
+				.map(|(w, v)| w.get_renderable(context, v))
+				.collect()
+		}
+	}
+
+	impl<T> Widget for Column<T>
+	where
+		T: Widget,
+	{
+		type Renderable = Vec<T::Renderable>;
+
+		fn get_renderable(
+			&mut self,
+			context: &mut Context<WidgetContext>,
+			view: View,
+		) -> Self::Renderable {
+			let views = view.split_column(self.values.len() as u32);
+
+			self.values
+				.iter_mut()
+				.zip(views)
+				.map(|(w, v)| w.get_renderable(context, v))
+				.collect()
 		}
 	}
 
@@ -90,10 +183,10 @@ mod impls {
         impl<$($name: Widget),*> Widget for ($($name),*) {
         	type Renderable = ($($name::Renderable),*);
 
-        	fn get_renderable(&mut self, context: &mut crate::context::Context<WidgetContext>) -> Self::Renderable {
+        	fn get_renderable(&mut self, context: &mut crate::context::Context<WidgetContext>, view: crate::view::View) -> Self::Renderable {
     			paste! {
     				let ($([<$name:snake>]),*) = self;
-    				($(<$name as Widget>::get_renderable([<$name:snake>], context)),*)
+    				($(<$name as Widget>::get_renderable([<$name:snake>], context, view.clone())),*)
     			}
     		}
         }

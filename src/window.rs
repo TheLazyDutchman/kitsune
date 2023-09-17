@@ -162,8 +162,6 @@ mod inner {
 
 			let global_view = GlobalView::new(size);
 
-			dbg!(global_view, size);
-
 			Ok(Self {
 				window,
 				size,
@@ -201,16 +199,12 @@ mod inner {
 				.global_view
 				.view(self.size, winit::dpi::PhysicalPosition::new(0, 0));
 
-			let mut context = Context::new(WidgetContext::new(
-				&self.device,
-				&self.queue,
-				&self.font,
-				view,
-			));
+			let mut context =
+				Context::new(WidgetContext::new(&self.device, &self.queue, &self.font));
 
 			let widget = self
 				.widget
-				.get_renderable(&mut context);
+				.get_renderable(&mut context, view);
 
 			{
 				let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
