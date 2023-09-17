@@ -1,8 +1,8 @@
 # KITSUNE UI
 
-> [!disclaimer]
+> ## ❗ disclaimer
 >
-> This is just a proof of concept for now, and it is by no meant to be used yet.
+> This is just a proof of concept for now, and it is by no means meant to be used yet.
 
 This is a retained mode User Interface library.
 
