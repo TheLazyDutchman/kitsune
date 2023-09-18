@@ -100,6 +100,7 @@ mod impls {
 	use paste::paste;
 
 	use super::*;
+	use crate::texture::Texture;
 
 	#[cfg(feature = "text")]
 	impl Widget for char {
@@ -113,6 +114,7 @@ mod impls {
 			let Some(bind_group) = context.font.rasterize(
 				*self,
 				context.device,
+				context.config.format,
 				context.queue,
 				context.sampler,
 				context.bind_group_layout,
@@ -211,58 +213,17 @@ mod impls {
 				depth_or_array_layers: 1,
 			};
 
-			let texture = context
-				.device
-				.create_texture(&wgpu::TextureDescriptor {
-					label: None,
-					size,
-					mip_level_count: 1,
-					sample_count: 1,
-					dimension: wgpu::TextureDimension::D2,
-					format: context.config.format,
-					usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
-					view_formats: &[],
-				});
-
-			let view = texture.create_view(&Default::default());
+			let mut texture = Texture::new(context.device, size, context.config.format);
 
 			let data = vec![[10, 10, 10, 255]; 10 * 10]
 				.into_iter()
 				.flatten()
 				.collect::<Vec<_>>();
 
-			context.queue.write_texture(
-				wgpu::ImageCopyTexture {
-					texture: &texture,
-					mip_level: 0,
-					origin: wgpu::Origin3d { x: 0, y: 0, z: 0 },
-					aspect: wgpu::TextureAspect::All,
-				},
-				&data,
-				wgpu::ImageDataLayout {
-					offset: 0,
-					bytes_per_row: Some(4 * size.width),
-					rows_per_image: Some(size.height),
-				},
-				size,
-			);
+			texture.write_data(context.queue, &data);
 
-			let bind_group = context
-				.device
-				.create_bind_group(&wgpu::BindGroupDescriptor {
-					label: None,
-					layout: context.bind_group_layout,
-					entries: &[
-						wgpu::BindGroupEntry {
-							binding: 0,
-							resource: wgpu::BindingResource::TextureView(&view),
-						},
-						wgpu::BindGroupEntry {
-							binding: 1,
-							resource: wgpu::BindingResource::Sampler(context.sampler),
-						},
-					],
-				});
+			let bind_group =
+				texture.bind_group(context.device, context.bind_group_layout, context.sampler);
 
 			let mut vertices = outer.corners().to_vec();
 			vertices.extend(inner.corners());

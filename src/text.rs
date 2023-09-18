@@ -1,5 +1,6 @@
 use ab_glyph::{Font as Font2, FontRef};
-use wgpu::TextureUsages;
+
+use crate::texture::Texture;
 
 pub struct Font {
 	font: FontRef<'static>,
@@ -14,6 +15,7 @@ impl Font {
 		&self,
 		value: char,
 		device: &wgpu::Device,
+		format: wgpu::TextureFormat,
 		queue: &wgpu::Queue,
 		sampler: &wgpu::Sampler,
 		layout: &wgpu::BindGroupLayout,
@@ -35,16 +37,7 @@ impl Font {
 			depth_or_array_layers: 1,
 		};
 
-		let texture = device.create_texture(&wgpu::TextureDescriptor {
-			label: None,
-			size,
-			mip_level_count: 1,
-			sample_count: 1,
-			dimension: wgpu::TextureDimension::D2,
-			format: wgpu::TextureFormat::Bgra8UnormSrgb,
-			usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
-			view_formats: &[],
-		});
+		let mut texture = Texture::new(device, size, format);
 
 		let mut data = vec![0; (4 * size.width * size.height) as usize];
 
@@ -61,37 +54,8 @@ impl Font {
 			data[index + 3] = alpha_value;
 		});
 
-		queue.write_texture(
-			wgpu::ImageCopyTexture {
-				texture: &texture,
-				mip_level: 0,
-				origin: wgpu::Origin3d { x: 0, y: 0, z: 0 },
-				aspect: wgpu::TextureAspect::All,
-			},
-			&data,
-			wgpu::ImageDataLayout {
-				offset: 0,
-				bytes_per_row: Some(4 * size.width),
-				rows_per_image: Some(size.height),
-			},
-			size,
-		);
+		texture.write_data(queue, &data);
 
-		let view = texture.create_view(&Default::default());
-
-		Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-			label: None,
-			layout: &layout,
-			entries: &[
-				wgpu::BindGroupEntry {
-					binding: 0,
-					resource: wgpu::BindingResource::TextureView(&view),
-				},
-				wgpu::BindGroupEntry {
-					binding: 1,
-					resource: wgpu::BindingResource::Sampler(&sampler),
-				},
-			],
-		}))
+		Some(texture.bind_group(device, layout, sampler))
 	}
 }

@@ -1,5 +1,6 @@
 pub mod context;
 pub mod render;
+pub mod texture;
 pub mod view;
 pub mod widget;
 
