@@ -2,7 +2,7 @@ use crate::{
 	context::Context,
 	render::{Render, RenderedMesh},
 	text::Font,
-	view::View,
+	view::{SizeHint, View},
 };
 
 pub trait Widget {
@@ -13,6 +13,14 @@ pub trait Widget {
 		context: &mut Context<WidgetContext>,
 		view: View,
 	) -> Self::Renderable;
+
+	fn width_hint(&self) -> SizeHint {
+		SizeHint::None
+	}
+
+	fn height_hint(&self) -> SizeHint {
+		SizeHint::None
+	}
 }
 
 pub struct WidgetContext<'a> {
@@ -133,6 +141,14 @@ mod impls {
 				bind_group,
 			))
 		}
+
+		fn width_hint(&self) -> SizeHint {
+			SizeHint::Physical(10)
+		}
+
+		fn height_hint(&self) -> SizeHint {
+			SizeHint::Physical(20)
+		}
 	}
 
 	#[cfg(feature = "text")]
@@ -149,6 +165,24 @@ mod impls {
 				.into_iter()
 				.filter_map(|x| x)
 				.collect()
+		}
+
+		fn width_hint(&self) -> SizeHint {
+			SizeHint::Sum(
+				self.chars()
+					.into_iter()
+					.map(|x| x.width_hint())
+					.collect(),
+			)
+		}
+
+		fn height_hint(&self) -> SizeHint {
+			SizeHint::Max(
+				self.chars()
+					.into_iter()
+					.map(|x| x.height_hint())
+					.collect(),
+			)
 		}
 	}
 
@@ -171,6 +205,24 @@ mod impls {
 				.map(|(w, v)| w.get_renderable(context, v))
 				.collect()
 		}
+
+		fn width_hint(&self) -> SizeHint {
+			SizeHint::Sum(
+				self.values
+					.iter()
+					.map(|x| x.width_hint())
+					.collect(),
+			)
+		}
+
+		fn height_hint(&self) -> SizeHint {
+			SizeHint::Max(
+				self.values
+					.iter()
+					.map(|x| x.height_hint())
+					.collect(),
+			)
+		}
 	}
 
 	impl<T> Widget for Column<T>
@@ -191,6 +243,24 @@ mod impls {
 				.zip(views)
 				.map(|(w, v)| w.get_renderable(context, v))
 				.collect()
+		}
+
+		fn width_hint(&self) -> SizeHint {
+			SizeHint::Max(
+				self.values
+					.iter()
+					.map(|x| x.width_hint())
+					.collect(),
+			)
+		}
+
+		fn height_hint(&self) -> SizeHint {
+			SizeHint::Sum(
+				self.values
+					.iter()
+					.map(|x| x.height_hint())
+					.collect(),
+			)
 		}
 	}
 
@@ -250,6 +320,20 @@ mod impls {
 					.get_renderable(context, inner),
 			)
 		}
+
+		fn width_hint(&self) -> SizeHint {
+			SizeHint::Sum(vec![
+				self.value.width_hint(),
+				SizeHint::Physical(self.width * 2),
+			])
+		}
+
+		fn height_hint(&self) -> SizeHint {
+			SizeHint::Sum(vec![
+				self.value.height_hint(),
+				SizeHint::Physical(self.width * 2),
+			])
+		}
 	}
 
 	macro_rules! tuple_impl {
@@ -261,6 +345,20 @@ mod impls {
     			paste! {
     				let ($([<$name:snake>]),*) = self;
     				($(<$name as Widget>::get_renderable([<$name:snake>], context, view.clone())),*)
+    			}
+    		}
+
+    		fn width_hint(&self) -> crate::view::SizeHint {
+    			paste! {
+    				let ($([<$name:snake>]),*) = self;
+    				crate::view::SizeHint::Max(vec![$(<$name as Widget>::width_hint([<$name:snake>])),*])
+    			}
+    		}
+
+    		fn height_hint(&self) -> crate::view::SizeHint {
+    			paste! {
+    				let ($([<$name:snake>]),*) = self;
+    				crate::view::SizeHint::Max(vec![$(<$name as Widget>::height_hint([<$name:snake>])),*])
     			}
     		}
         }

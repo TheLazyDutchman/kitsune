@@ -29,11 +29,48 @@ pub struct View {
 }
 
 impl View {
-	pub fn virtualize(&self, pos: PhysicalPosition<u32>) -> VirtualPosition {
-		let x = pos.x as f32 / self.size.width as f32;
-		let y = pos.y as f32 / self.size.height as f32;
+	fn virtualize_x(&self, x: u32) -> f32 {
+		x as f32 / self.size.width as f32
+	}
 
-		VirtualPosition { x, y }
+	fn virtualize_y(&self, y: u32) -> f32 {
+		y as f32 / self.size.height as f32
+	}
+
+	pub fn virtualize(&self, pos: PhysicalPosition<u32>) -> VirtualPosition {
+		VirtualPosition::new(self.virtualize_x(pos.x), self.virtualize_y(pos.y))
+	}
+
+	pub fn virtualize_width_hint(&self, hint: SizeHint) -> Option<f32> {
+		match hint {
+			SizeHint::None => None,
+			SizeHint::Physical(value) => Some(self.virtualize_x(value)),
+			SizeHint::Virtual(value) => Some(value),
+			SizeHint::Max(value) => value
+				.into_iter()
+				.flat_map(|x| self.virtualize_width_hint(x))
+				.reduce(|a, b| a.min(b)),
+			SizeHint::Sum(value) => value
+				.into_iter()
+				.flat_map(|x| self.virtualize_width_hint(x))
+				.reduce(|a, b| a + b),
+		}
+	}
+
+	pub fn virtualize_height_hint(&self, hint: SizeHint) -> Option<f32> {
+		match hint {
+			SizeHint::None => None,
+			SizeHint::Physical(value) => Some(self.virtualize_y(value)),
+			SizeHint::Virtual(value) => Some(value),
+			SizeHint::Max(value) => value
+				.into_iter()
+				.flat_map(|x| self.virtualize_height_hint(x))
+				.reduce(|a, b| a.min(b)),
+			SizeHint::Sum(value) => value
+				.into_iter()
+				.flat_map(|x| self.virtualize_height_hint(x))
+				.reduce(|a, b| a + b),
+		}
 	}
 
 	pub fn globalize(&self, pos: VirtualPosition) -> GlobalPosition {
@@ -114,4 +151,12 @@ impl VirtualPosition {
 pub struct GlobalPosition {
 	x: f32,
 	y: f32,
+}
+
+pub enum SizeHint {
+	None,
+	Physical(u32),
+	Virtual(f32),
+	Max(Vec<SizeHint>),
+	Sum(Vec<SizeHint>),
 }
