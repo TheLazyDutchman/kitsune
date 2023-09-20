@@ -189,12 +189,16 @@ impl View {
 		self.global.view(size, offset)
 	}
 
+	/// Get the vertices of the four corners of this view.
+	///
+	/// they are ordered counter clock wise.
+	///
 	pub fn corners(&self) -> [Vertex; 4] {
 		[
 			Vertex::new(self.globalize(VirtualPosition::new(0.0, 0.0)), [0.0, 0.0]),
 			Vertex::new(self.globalize(VirtualPosition::new(0.0, 1.0)), [0.0, 1.0]),
-			Vertex::new(self.globalize(VirtualPosition::new(1.0, 0.0)), [1.0, 0.0]),
 			Vertex::new(self.globalize(VirtualPosition::new(1.0, 1.0)), [1.0, 1.0]),
+			Vertex::new(self.globalize(VirtualPosition::new(1.0, 0.0)), [1.0, 0.0]),
 		]
 	}
 }

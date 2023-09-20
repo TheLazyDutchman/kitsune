@@ -112,6 +112,7 @@ wrapper! {
 		values: Vec<T>
 	}
 }
+
 wrapper! {
 	struct Column<T> {
 		values: Vec<T>
@@ -155,21 +156,19 @@ mod impls {
 			context: &mut Context<WidgetContext>,
 			view: View,
 		) -> Self::Renderable {
-			let Some(bind_group) = context.font.rasterize(
+			let bind_group = context.font.rasterize(
 				context.font.glyph(*self),
 				context.device,
 				context.config.format,
 				context.queue,
 				context.sampler,
 				context.bind_group_layout,
-			) else {
-				return None;
-			};
+			)?;
 
 			let view = view.from_size_hints(self.width_hint(context), self.height_hint(context));
 			let vertices = view.corners();
 
-			let indices = [0, 1, 2, 1, 3, 2];
+			let indices = [0, 1, 2, 2, 3, 0];
 
 			Some(RenderedMesh::new(
 				context.device,
@@ -202,18 +201,14 @@ mod impls {
 
 	#[cfg(feature = "text")]
 	impl Widget for String {
-		type Renderable = Vec<RenderedMesh>;
+		type Renderable = Vec<Option<RenderedMesh>>;
 
 		fn get_renderable(
 			&mut self,
 			context: &mut Context<WidgetContext>,
 			view: View,
 		) -> Self::Renderable {
-			Row::new(self.chars().collect())
-				.get_renderable(context, view)
-				.into_iter()
-				.filter_map(|x| x)
-				.collect()
+			Row::new(self.chars().collect()).get_renderable(context, view)
 		}
 
 		fn width_hint(&self, context: &Context<WidgetContext>) -> SizeHint {
@@ -365,14 +360,14 @@ mod impls {
 			indices.extend([0, 1, 4]);
 			indices.extend([1, 5, 4]);
 
-			indices.extend([0, 4, 2]);
-			indices.extend([4, 6, 2]);
+			indices.extend([0, 4, 3]);
+			indices.extend([4, 7, 3]);
 
-			indices.extend([2, 6, 7]);
-			indices.extend([2, 7, 3]);
+			indices.extend([3, 7, 6]);
+			indices.extend([3, 6, 2]);
 
-			indices.extend([1, 7, 5]);
-			indices.extend([1, 3, 7]);
+			indices.extend([1, 6, 5]);
+			indices.extend([1, 2, 6]);
 
 			let border = RenderedMesh::new(&context.device, &vertices, &indices, bind_group);
 

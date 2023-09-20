@@ -45,9 +45,22 @@ impl Font {
 
 		let mut data = vec![0; (4 * size.width * size.height) as usize];
 
-		outlined_glyph.draw(|x, y, c| {
+		let mut max_y = 0;
+
+		// TODO: I do not know how to correctly do the offset of characters otherwise.
+		outlined_glyph.draw(|_, y, _| {
+			if y > max_y {
+				max_y = y
+			}
+		});
+
+		let y_offset = (size.height - 1) - max_y;
+
+		outlined_glyph.draw(|x, mut y, c| {
 			let color_value = 0;
 			let alpha_value = (255.0 * c) as u8;
+
+			y += y_offset;
 
 			let index = size.width * y + x;
 			let index = index as usize * 4;
@@ -64,6 +77,7 @@ impl Font {
 	}
 }
 
+#[derive(Debug, Clone)]
 pub struct Glyph {
 	glyph: ab_glyph::Glyph,
 	size: Rect,
