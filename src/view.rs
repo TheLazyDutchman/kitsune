@@ -33,12 +33,52 @@ impl View {
 		x as f32 / self.size.width as f32
 	}
 
+	fn physical_x(&self, x: f32) -> u32 {
+		(x * self.size.width as f32) as u32
+	}
+
 	fn virtualize_y(&self, y: u32) -> f32 {
 		y as f32 / self.size.height as f32
 	}
 
+	fn physical_y(&self, y: f32) -> u32 {
+		(y * self.size.height as f32) as u32
+	}
+
 	pub fn virtualize(&self, pos: PhysicalPosition<u32>) -> VirtualPosition {
 		VirtualPosition::new(self.virtualize_x(pos.x), self.virtualize_y(pos.y))
+	}
+
+	pub fn physical_width_hint(&self, hint: SizeHint) -> Option<u32> {
+		match hint {
+			SizeHint::None => None,
+			SizeHint::Physical(value) => Some(value),
+			SizeHint::Virtual(value) => Some(self.physical_x(value)),
+			SizeHint::Max(value) => value
+				.into_iter()
+				.flat_map(|x| self.physical_width_hint(x))
+				.reduce(|a, b| a.min(b)),
+			SizeHint::Sum(value) => value
+				.into_iter()
+				.flat_map(|x| self.physical_width_hint(x))
+				.reduce(|a, b| a + b),
+		}
+	}
+
+	pub fn physical_height_hint(&self, hint: SizeHint) -> Option<u32> {
+		match hint {
+			SizeHint::None => None,
+			SizeHint::Physical(value) => Some(value),
+			SizeHint::Virtual(value) => Some(self.physical_y(value)),
+			SizeHint::Max(value) => value
+				.into_iter()
+				.flat_map(|x| self.physical_height_hint(x))
+				.reduce(|a, b| a.min(b)),
+			SizeHint::Sum(value) => value
+				.into_iter()
+				.flat_map(|x| self.physical_height_hint(x))
+				.reduce(|a, b| a + b),
+		}
 	}
 
 	pub fn virtualize_width_hint(&self, hint: SizeHint) -> Option<f32> {
@@ -122,6 +162,17 @@ impl View {
 		let offset = PhysicalPosition::new(self.offset.x + width, self.offset.y + width);
 		let inner = self.global.view(size, offset);
 		(self, inner)
+	}
+
+	pub fn from_size_hints(self, width: SizeHint, height: SizeHint) -> View {
+		let size = PhysicalSize::new(
+			self.physical_width_hint(width)
+				.unwrap_or(self.size.width),
+			self.physical_height_hint(height)
+				.unwrap_or(self.size.width),
+		);
+		let offset = PhysicalPosition::new(self.offset.x, self.offset.y);
+		self.global.view(size, offset)
 	}
 
 	pub fn corners(&self) -> [Vertex; 4] {

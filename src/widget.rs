@@ -130,6 +130,7 @@ mod impls {
 				return None;
 			};
 
+			let view = view.from_size_hints(self.width_hint(), self.height_hint());
 			let vertices = view.corners();
 
 			let indices = [0, 1, 2, 1, 3, 2];
@@ -197,6 +198,7 @@ mod impls {
 			context: &mut Context<WidgetContext>,
 			view: View,
 		) -> Self::Renderable {
+			let view = view.from_size_hints(self.width_hint(), self.height_hint());
 			let views = view.split_row(self.values.len() as u32);
 
 			self.values
@@ -236,6 +238,7 @@ mod impls {
 			context: &mut Context<WidgetContext>,
 			view: View,
 		) -> Self::Renderable {
+			let view = view.from_size_hints(self.width_hint(), self.height_hint());
 			let views = view.split_column(self.values.len() as u32);
 
 			self.values
@@ -275,6 +278,7 @@ mod impls {
 			context: &mut Context<WidgetContext>,
 			view: View,
 		) -> Self::Renderable {
+			let view = view.from_size_hints(self.width_hint(), self.height_hint());
 			let (outer, inner) = view.bordered(self.width);
 
 			let size = wgpu::Extent3d {
@@ -342,6 +346,7 @@ mod impls {
         	type Renderable = ($($name::Renderable),*);
 
         	fn get_renderable(&mut self, context: &mut crate::context::Context<WidgetContext>, view: crate::view::View) -> Self::Renderable {
+        		let view = view.from_size_hints(self.width_hint(), self.height_hint());
     			paste! {
     				let ($([<$name:snake>]),*) = self;
     				($(<$name as Widget>::get_renderable([<$name:snake>], context, view.clone())),*)
