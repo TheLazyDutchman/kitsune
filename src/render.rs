@@ -132,6 +132,18 @@ mod impls {
 		}
 	}
 
+	impl<T> Render for std::rc::Rc<T>
+	where
+		T: Render,
+	{
+		fn render<'a, 'b>(&'a self, context: &mut Context<RenderContext<'b>>)
+		where
+			'a: 'b,
+		{
+			(**self).render(context);
+		}
+	}
+
 	macro_rules! tuple_impl {
     ($($name:ident),*) => {
         impl<$($name: Render),*> Render for ($($name),*) {

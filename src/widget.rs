@@ -54,23 +54,31 @@ impl<'a> WidgetContext<'a> {
 
 macro_rules! wrapper {
 	(
-		struct $name:ident<T> {
+		struct $name:ident<T $(:$bound:ident)?> {
 			$value:ident: $ty:ty
 			$(, $field:ident: $field_ty:ty)*
-		}
-	) => {
-		pub struct $name<T> {
-			$value: $ty,
-			$($field:$field_ty,)*
+			$(,#default $($default_field:ident: $default_ty:ty),*)?
 		}
 
-		impl<T> $name<T> {
+		$(#on_mut $mut_fn:item)?
+	) => {
+		pub struct $name<T $(:$bound)?> {
+			$value: $ty,
+			$($field:$field_ty,)*
+			$($($default_field:$default_ty),*)?
+		}
+
+		impl<T> $name<T> where $(T:$bound)? {
 			pub fn new($value: $ty, $($field:$field_ty),*) -> Self {
-				Self { $value, $($field),* }
+				Self {
+					$value,
+					$($field),*
+					$($($default_field: <$default_ty>::default()),*)?
+				}
 			}
 		}
 
-		impl<T> std::ops::Deref for $name<T> {
+		impl<T> std::ops::Deref for $name<T> where $(T:$bound)? {
 			type Target = $ty;
 
 			fn deref(&self) -> &Self::Target {
@@ -78,10 +86,16 @@ macro_rules! wrapper {
 			}
 		}
 
-		impl<T> std::ops::DerefMut for $name<T> {
-			fn deref_mut(&mut self) -> &mut Self::Target {
-				&mut self.$value
-			}
+		impl<T> std::ops::DerefMut for $name<T> where $(T:$bound)? {
+			wrapper!(on_mut $value $($mut_fn)?);
+		}
+	};
+	(on_mut $value:ident $mut_fn:item) => {
+		$mut_fn
+	};
+	(on_mut $value:ident) => {
+		fn deref_mut(&mut self) -> &mut Self::Target {
+			&mut self.$value
 		}
 	};
 }
@@ -101,6 +115,21 @@ wrapper! {
 	struct Bordered<T> {
 		value: T,
 		width: u32
+	}
+}
+
+wrapper! {
+	struct Cached<T: Widget> {
+		value: T,
+
+		#default
+		cached: Option<std::rc::Rc<T::Renderable>>
+	}
+
+	#on_mut
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		self.cached = None;
+		&mut self.value
 	}
 }
 
@@ -337,6 +366,30 @@ mod impls {
 				self.value.height_hint(),
 				SizeHint::Physical(self.width * 2),
 			])
+		}
+	}
+
+	impl<T> Widget for Cached<T>
+	where
+		T: Widget,
+	{
+		type Renderable = std::rc::Rc<T::Renderable>;
+
+		fn get_renderable(
+			&mut self,
+			context: &mut Context<WidgetContext>,
+			view: View,
+		) -> Self::Renderable {
+			if let Some(ref renderable) = self.cached {
+				renderable.clone()
+			} else {
+				let renderable = std::rc::Rc::new(
+					self.value
+						.get_renderable(context, view),
+				);
+				self.cached = Some(renderable.clone());
+				renderable
+			}
 		}
 	}
 
