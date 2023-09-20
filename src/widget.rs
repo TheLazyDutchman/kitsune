@@ -28,6 +28,13 @@ pub trait Widget {
 	{
 		Cached::new(self)
 	}
+
+	fn bordered(self, size: u32) -> Bordered<Self>
+	where
+		Self: Sized,
+	{
+		Bordered::new(self, size)
+	}
 }
 
 pub struct WidgetContext<'a> {
@@ -122,7 +129,7 @@ wrapper! {
 wrapper! {
 	struct Bordered<T> {
 		value: T,
-		width: u32
+		size: u32
 	}
 }
 
@@ -332,7 +339,7 @@ mod impls {
 			view: View,
 		) -> Self::Renderable {
 			let view = view.from_size_hints(self.width_hint(context), self.height_hint(context));
-			let (outer, inner) = view.bordered(self.width);
+			let (outer, inner) = view.bordered(self.size);
 
 			let size = wgpu::Extent3d {
 				width: 10,
@@ -381,7 +388,7 @@ mod impls {
 		fn width_hint(&self, context: &Context<WidgetContext>) -> SizeHint {
 			SizeHint::Sum(vec![
 				self.value.width_hint(context),
-				SizeHint::Physical(self.width * 2),
+				SizeHint::Physical(self.size * 2),
 			])
 		}
 
@@ -389,7 +396,7 @@ mod impls {
 			SizeHint::Sum(vec![
 				self.value
 					.height_hint(context),
-				SizeHint::Physical(self.width * 2),
+				SizeHint::Physical(self.size * 2),
 			])
 		}
 	}
