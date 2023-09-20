@@ -129,30 +129,44 @@ impl View {
 		GlobalPosition { x, y }
 	}
 
-	pub fn split_row(self, count: u32) -> Vec<Self> {
-		let width = self.size.width / count;
-		let size = PhysicalSize::new(width, self.size.height);
-
+	pub fn split_row(self, hints: Vec<SizeHint>) -> Vec<Self> {
 		let mut values = vec![];
-		for i in 0..count {
+		let mut offset = 0;
+
+		for hint in hints {
+			// TODO: I do not yet know how to handle an unknown size hint
+			let width = self
+				.physical_width_hint(hint)
+				.unwrap_or(0);
+
+			let size = PhysicalSize::new(width, self.size.height);
 			values.push(self.global.view(
 				size,
-				PhysicalPosition::new(self.offset.x + i * width, self.offset.y),
+				PhysicalPosition::new(self.offset.x + offset, self.offset.y),
 			));
+
+			offset += width;
 		}
 		values
 	}
 
-	pub fn split_column(self, count: u32) -> Vec<Self> {
-		let height = self.size.height / count;
-		let size = PhysicalSize::new(self.size.width, height);
-
+	pub fn split_column(self, hints: Vec<SizeHint>) -> Vec<Self> {
 		let mut values = vec![];
-		for i in 0..count {
+		let mut offset = 0;
+
+		for hint in hints {
+			// TODO: I do not yet know how to handle an unknown size hint
+			let height = self
+				.physical_width_hint(hint)
+				.unwrap_or(0);
+
+			let size = PhysicalSize::new(self.size.width, height);
 			values.push(self.global.view(
 				size,
-				PhysicalPosition::new(self.offset.x, self.offset.y + i * height),
+				PhysicalPosition::new(self.offset.x, self.offset.y + offset),
 			));
+
+			offset += height;
 		}
 		values
 	}

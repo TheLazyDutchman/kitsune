@@ -1,4 +1,4 @@
-use ab_glyph::{Font as Font2, FontRef};
+use ab_glyph::{Font as Font2, FontRef, Rect};
 
 use crate::texture::Texture;
 
@@ -11,25 +11,29 @@ impl Font {
 		Self { font }
 	}
 
+	pub fn glyph(&self, value: char) -> Glyph {
+		let glyph = self
+			.font
+			.glyph_id(value)
+			.with_scale(100.0);
+		let size = self.font.glyph_bounds(&glyph);
+		Glyph { glyph, size }
+	}
+
 	pub fn rasterize(
 		&self,
-		value: char,
+		glyph: Glyph,
 		device: &wgpu::Device,
 		format: wgpu::TextureFormat,
 		queue: &wgpu::Queue,
 		sampler: &wgpu::Sampler,
 		layout: &wgpu::BindGroupLayout,
 	) -> Option<wgpu::BindGroup> {
-		let glyph = self
-			.font
-			.glyph_id(value)
-			.with_scale(100.0);
-
-		let size = self.font.glyph_bounds(&glyph);
+		let size = glyph.size();
 
 		let outlined_glyph = self
 			.font
-			.outline_glyph(glyph)?;
+			.outline_glyph(glyph.glyph)?;
 
 		let size = wgpu::Extent3d {
 			width: size.width() as u32,
@@ -57,5 +61,16 @@ impl Font {
 		texture.write_data(queue, &data);
 
 		Some(texture.bind_group(device, layout, sampler))
+	}
+}
+
+pub struct Glyph {
+	glyph: ab_glyph::Glyph,
+	size: Rect,
+}
+
+impl Glyph {
+	pub fn size(&self) -> Rect {
+		self.size
 	}
 }
