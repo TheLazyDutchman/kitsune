@@ -1,3 +1,5 @@
+use winit::dpi::PhysicalSize;
+
 use crate::{
 	context::Context,
 	render::{Render, RenderedMesh},
@@ -35,6 +37,8 @@ pub trait Widget {
 	{
 		Bordered::new(self, size)
 	}
+
+	fn resize(&mut self, _new_size: PhysicalSize<u32>) {}
 }
 
 pub struct WidgetContext<'a> {
@@ -399,6 +403,14 @@ mod impls {
 				SizeHint::Physical(self.size * 2),
 			])
 		}
+
+		fn resize(&mut self, new_size: PhysicalSize<u32>) {
+			self.value
+				.resize(PhysicalSize::new(
+					new_size.width - self.size * 2,
+					new_size.height - self.size * 2,
+				));
+		}
 	}
 
 	impl<T> Widget for Cached<T>
@@ -431,6 +443,10 @@ mod impls {
 		fn height_hint(&self, context: &Context<WidgetContext>) -> SizeHint {
 			(**self).height_hint(context)
 		}
+
+		fn resize(&mut self, new_size: PhysicalSize<u32>) {
+			(**self).resize(new_size);
+		}
 	}
 
 	macro_rules! tuple_impl {
@@ -459,6 +475,13 @@ mod impls {
     				crate::view::SizeHint::Max(vec![$(<$name as Widget>::height_hint([<$name:snake>], context)),*])
     			}
     		}
+
+			fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+				paste! {
+    				let ($([<$name:snake>]),*) = self;
+    				$(<$name as Widget>::resize([<$name:snake>], new_size);)*
+				}
+			}
         }
     };
 }

@@ -222,6 +222,19 @@ mod inner {
 			self.window.request_redraw()
 		}
 
+		pub fn resize(&mut self, inner_size: winit::dpi::PhysicalSize<u32>) {
+			self.size = inner_size;
+			self.config.width = inner_size.width;
+			self.config.height = inner_size.height;
+
+			self.surface
+				.configure(&self.device, &self.config);
+
+			self.global_view = GlobalView::new(inner_size);
+
+			self.widget.resize(inner_size);
+		}
+
 		pub fn draw(&mut self) -> Result<()> {
 			let output = self
 				.surface
@@ -306,9 +319,8 @@ impl<T: Widget> Window<T> {
 	{
 		self.event_loop
 			.run(move |event, _, control_flow| match event {
-				Event::WindowEvent {
-					window_id,
-					event:
+				Event::WindowEvent { window_id, event } if self.inner.id() == window_id => {
+					match event {
 						WindowEvent::CloseRequested
 						| WindowEvent::KeyboardInput {
 							input:
@@ -318,8 +330,15 @@ impl<T: Widget> Window<T> {
 									..
 								},
 							..
-						},
-				} if self.inner.id() == window_id => control_flow.set_exit(),
+						} => control_flow.set_exit(),
+						WindowEvent::Resized(new_size)
+						| WindowEvent::ScaleFactorChanged {
+							new_inner_size: &mut new_size,
+							..
+						} => self.inner.resize(new_size),
+						_ => {}
+					}
+				}
 				Event::MainEventsCleared => self.inner.request_redraw(),
 				Event::RedrawRequested(window_id) if self.inner.id() == window_id => {
 					let result = self.inner.draw();
