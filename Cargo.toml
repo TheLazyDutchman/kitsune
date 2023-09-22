@@ -3,7 +3,7 @@ name = "kitsune_ui"
 authors = ["HummingPhoenix <jjpouwels2004@gmail.com>"]
 description = "A retained-mode UI library in rust"
 keywords = ["UI", "graphics"]
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
@@ -12,11 +12,14 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 ab_glyph = { version = "0.2.21", optional = true }
 bytemuck = { version = "1.14.0", features = ["derive"] }
+itertools = "0.11.0"
 paste = "1.0.14"
 thiserror = "1.0.48"
-tokio = { version = "1.32.0", features = ["full"] }
 wgpu = "0.17.0"
 winit = { version = "0.28.6", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1.32.0", features = ["full"] }
 
 [features]
 default = ["window", "text"]

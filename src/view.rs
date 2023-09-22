@@ -57,6 +57,10 @@ impl View {
 			SizeHint::Max(value) => value
 				.into_iter()
 				.flat_map(|x| self.physical_width_hint(x))
+				.reduce(|a, b| a.max(b)),
+			SizeHint::Min(value) => value
+				.into_iter()
+				.flat_map(|x| self.physical_width_hint(x))
 				.reduce(|a, b| a.min(b)),
 			SizeHint::Sum(value) => value
 				.into_iter()
@@ -71,6 +75,10 @@ impl View {
 			SizeHint::Physical(value) => Some(value),
 			SizeHint::Virtual(value) => Some(self.physical_y(value)),
 			SizeHint::Max(value) => value
+				.into_iter()
+				.flat_map(|x| self.physical_height_hint(x))
+				.reduce(|a, b| a.max(b)),
+			SizeHint::Min(value) => value
 				.into_iter()
 				.flat_map(|x| self.physical_height_hint(x))
 				.reduce(|a, b| a.min(b)),
@@ -89,6 +97,10 @@ impl View {
 			SizeHint::Max(value) => value
 				.into_iter()
 				.flat_map(|x| self.virtualize_width_hint(x))
+				.reduce(|a, b| a.max(b)),
+			SizeHint::Min(value) => value
+				.into_iter()
+				.flat_map(|x| self.virtualize_width_hint(x))
 				.reduce(|a, b| a.min(b)),
 			SizeHint::Sum(value) => value
 				.into_iter()
@@ -103,6 +115,10 @@ impl View {
 			SizeHint::Physical(value) => Some(self.virtualize_y(value)),
 			SizeHint::Virtual(value) => Some(value),
 			SizeHint::Max(value) => value
+				.into_iter()
+				.flat_map(|x| self.virtualize_height_hint(x))
+				.reduce(|a, b| a.max(b)),
+			SizeHint::Min(value) => value
 				.into_iter()
 				.flat_map(|x| self.virtualize_height_hint(x))
 				.reduce(|a, b| a.min(b)),
@@ -237,5 +253,6 @@ pub enum SizeHint {
 	Physical(u32),
 	Virtual(f32),
 	Max(Vec<SizeHint>),
+	Min(Vec<SizeHint>),
 	Sum(Vec<SizeHint>),
 }

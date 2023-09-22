@@ -81,16 +81,19 @@ impl Widget for Input {
 	fn width_hint(
 		&self,
 		context: &kitsune_ui::context::Context<kitsune_ui::widget::WidgetContext>,
+		view: &kitsune_ui::view::View,
 	) -> kitsune_ui::view::SizeHint {
-		self.value.width_hint(context)
+		self.value
+			.width_hint(context, view)
 	}
 
 	fn height_hint(
 		&self,
 		context: &kitsune_ui::context::Context<kitsune_ui::widget::WidgetContext>,
+		view: &kitsune_ui::view::View,
 	) -> kitsune_ui::view::SizeHint {
 		self.value
-			.height_hint(context)
+			.height_hint(context, view)
 	}
 }
 
