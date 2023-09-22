@@ -126,6 +126,12 @@ wrapper! {
 }
 
 wrapper! {
+	struct WrappingRow<T> {
+		values: Vec<T>
+	}
+}
+
+wrapper! {
 	struct Column<T> {
 		values: Vec<T>
 	}
@@ -213,14 +219,14 @@ mod impls {
 
 	#[cfg(feature = "text")]
 	impl Widget for String {
-		type Renderable = Vec<Option<RenderedMesh>>;
+		type Renderable = <WrappingRow<char> as Widget>::Renderable;
 
 		fn get_renderable(
 			&mut self,
 			context: &mut Context<WidgetContext>,
 			view: View,
 		) -> Self::Renderable {
-			Row::new(self.chars().collect()).get_renderable(context, view)
+			WrappingRow::new(self.chars().collect()).get_renderable(context, view)
 		}
 
 		fn width_hint(&self, context: &Context<WidgetContext>) -> SizeHint {
@@ -239,6 +245,37 @@ mod impls {
 					.map(|x| x.height_hint(context))
 					.collect(),
 			)
+		}
+	}
+
+	impl<'a, T> Widget for &'a mut T
+	where
+		T: Widget,
+	{
+		type Renderable = T::Renderable;
+
+		fn get_renderable(
+			&mut self,
+			context: &mut Context<WidgetContext>,
+			view: View,
+		) -> Self::Renderable {
+			(**self).get_renderable(context, view)
+		}
+
+		fn resize(&mut self, new_size: PhysicalSize<u32>) {
+			(**self).resize(new_size);
+		}
+
+		fn handle(&mut self, event: &WindowEvent) {
+			(**self).handle(event);
+		}
+
+		fn width_hint(&self, context: &Context<WidgetContext>) -> SizeHint {
+			(**self).width_hint(context)
+		}
+
+		fn height_hint(&self, context: &Context<WidgetContext>) -> SizeHint {
+			(**self).height_hint(context)
 		}
 	}
 
@@ -285,6 +322,54 @@ mod impls {
 					.collect(),
 			)
 		}
+
+		fn handle(&mut self, event: &WindowEvent) {
+			for value in &mut self.values {
+				value.handle(event);
+			}
+		}
+	}
+
+	impl<T> Widget for WrappingRow<T>
+	where
+		T: Widget,
+	{
+		type Renderable = Vec<Vec<<T as Widget>::Renderable>>;
+
+		fn get_renderable(
+			&mut self,
+			context: &mut Context<WidgetContext>,
+			view: View,
+		) -> Self::Renderable {
+			let mut columns = vec![];
+			let mut current_row = vec![];
+
+			let mut offset = 0;
+			for value in &mut self.values {
+				offset += view
+					.physical_width_hint(value.width_hint(context))
+					.unwrap_or(0);
+
+				if offset > view.width() {
+					columns.push(Row::new(std::mem::take(&mut current_row)));
+					offset = 0;
+				}
+
+				current_row.push(value);
+			}
+
+			if !current_row.is_empty() {
+				columns.push(Row::new(current_row));
+			}
+
+			Column::new(columns).get_renderable(context, view)
+		}
+
+		fn handle(&mut self, event: &WindowEvent) {
+			for value in &mut self.values {
+				value.handle(event);
+			}
+		}
 	}
 
 	impl<T> Widget for Column<T>
@@ -329,6 +414,12 @@ mod impls {
 					.map(|x| x.height_hint(context))
 					.collect(),
 			)
+		}
+
+		fn handle(&mut self, event: &WindowEvent) {
+			for value in &mut self.values {
+				value.handle(event);
+			}
 		}
 	}
 

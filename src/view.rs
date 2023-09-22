@@ -181,9 +181,11 @@ impl View {
 	pub fn from_size_hints(self, width: SizeHint, height: SizeHint) -> View {
 		let size = PhysicalSize::new(
 			self.physical_width_hint(width)
-				.unwrap_or(self.size.width),
+				.unwrap_or(self.size.width)
+				.min(self.width()),
 			self.physical_height_hint(height)
-				.unwrap_or(self.size.width),
+				.unwrap_or(self.size.width)
+				.min(self.height()),
 		);
 		let offset = PhysicalPosition::new(self.offset.x, self.offset.y);
 		self.global.view(size, offset)
@@ -200,6 +202,14 @@ impl View {
 			Vertex::new(self.globalize(VirtualPosition::new(1.0, 1.0)), [1.0, 1.0]),
 			Vertex::new(self.globalize(VirtualPosition::new(1.0, 0.0)), [1.0, 0.0]),
 		]
+	}
+
+	pub fn width(&self) -> u32 {
+		self.size.width
+	}
+
+	pub fn height(&self) -> u32 {
+		self.size.height
 	}
 }
 

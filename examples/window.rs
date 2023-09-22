@@ -1,6 +1,9 @@
 use std::error::Error;
 
-use kitsune_ui::{widget::Widget, window::Window};
+use kitsune_ui::{
+	widget::{Column, Widget},
+	window::Window,
+};
 use winit::event::{ElementState, KeyboardInput, WindowEvent};
 
 struct Input {
@@ -74,11 +77,26 @@ impl Widget for Input {
 			}
 		}
 	}
+
+	fn width_hint(
+		&self,
+		context: &kitsune_ui::context::Context<kitsune_ui::widget::WidgetContext>,
+	) -> kitsune_ui::view::SizeHint {
+		self.value.width_hint(context)
+	}
+
+	fn height_hint(
+		&self,
+		context: &kitsune_ui::context::Context<kitsune_ui::widget::WidgetContext>,
+	) -> kitsune_ui::view::SizeHint {
+		self.value
+			.height_hint(context)
+	}
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-	let widget = Input::new();
+	let widget = Column::new(vec![Input::new(), Input::new()]);
 
 	let window = Window::new(widget).await?;
 
