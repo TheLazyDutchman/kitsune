@@ -35,9 +35,20 @@ impl Font {
 			.font
 			.outline_glyph(glyph.glyph)?;
 
+		let width = if size.min.x < 0.0 {
+			size.max.x - size.min.x
+		} else {
+			size.max.x
+		} as u32;
+		let height = if size.min.y < 0.0 {
+			size.max.y - size.min.y
+		} else {
+			size.max.y
+		} as u32;
+
 		let size = wgpu::Extent3d {
-			width: size.width() as u32,
-			height: size.height() as u32,
+			width,
+			height,
 			depth_or_array_layers: 1,
 		};
 

@@ -1,4 +1,4 @@
-use winit::dpi::PhysicalSize;
+use winit::{dpi::PhysicalSize, event::WindowEvent};
 
 use crate::{
 	context::Context,
@@ -24,6 +24,9 @@ pub trait Widget {
 		SizeHint::None
 	}
 
+	fn resize(&mut self, _new_size: PhysicalSize<u32>) {}
+	fn handle(&mut self, _event: &WindowEvent) {}
+
 	fn cached(self) -> Cached<Self>
 	where
 		Self: Sized,
@@ -37,8 +40,6 @@ pub trait Widget {
 	{
 		Bordered::new(self, size)
 	}
-
-	fn resize(&mut self, _new_size: PhysicalSize<u32>) {}
 }
 
 pub struct WidgetContext<'a> {

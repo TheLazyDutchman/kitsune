@@ -33,6 +33,7 @@ pub enum Error {
 mod inner {
 	use ab_glyph::FontRef;
 	use winit::{
+		event::WindowEvent,
 		event_loop::EventLoop,
 		window::{Window, WindowId},
 	};
@@ -297,6 +298,10 @@ mod inner {
 
 			Ok(())
 		}
+
+		pub fn handle(&mut self, event: &WindowEvent) {
+			self.widget.handle(event);
+		}
 	}
 }
 
@@ -336,7 +341,9 @@ impl<T: Widget> Window<T> {
 							new_inner_size: &mut new_size,
 							..
 						} => self.inner.resize(new_size),
-						_ => {}
+						event => {
+							self.inner.handle(&event);
+						}
 					}
 				}
 				Event::MainEventsCleared => self.inner.request_redraw(),
